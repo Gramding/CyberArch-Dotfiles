@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 SOCK="$XDG_RUNTIME_DIR/astal/cyberpunk.sock"
 
-exec 9>"/tmp/hypr-record.lock"
+# lock in the per-user runtime dir (0700), not a predictable /tmp path another local user can
+# pre-create or point elsewhere
+RUNDIR="${XDG_RUNTIME_DIR:-$HOME/.cache}/cyberpunk"
+mkdir -p "$RUNDIR" 2>/dev/null || true
+chmod 700 "$RUNDIR" 2>/dev/null || true
+exec 9>"$RUNDIR/hypr-record.lock"
 flock -w 2 9 || exit 0          # wait up to 2s for the lock, then just give up instead of stacking
 
 if ! command -v wf-recorder >/dev/null 2>&1; then

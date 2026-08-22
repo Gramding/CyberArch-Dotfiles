@@ -6,7 +6,7 @@ import GdkPixbuf from "gi://GdkPixbuf"
 import Pango from "gi://Pango?version=1.0"
 import PangoCairo from "gi://PangoCairo?version=1.0"
 import { NEON, f } from "./colors.ts"
-import { SCREEN_WIDTH, SCREEN_HEIGHT } from "../../env.ts"
+import { SCREEN_WIDTH, SCREEN_HEIGHT, RUNTIME_DIR } from "../../env.ts"
 
 import { TITLE, MONO } from "./fonts.ts"
 const Cairo: any = (imports as any).cairo
@@ -41,7 +41,7 @@ const loadCover = (url) => {
  const apply = (path) => { if (url !== coverUrl) return; try { coverPb = GdkPixbuf.Pixbuf.new_from_file(path); coverScaled = coverPb.scale_simple(CSZ, CSZ, GdkPixbuf.InterpType.BILINEAR) } catch {} panelDirty = true; pArea && pArea.queue_draw() }
  if (url.startsWith("file://")) apply(decodeURIComponent(url.slice(7)))
  else if (/^https?:\/\//.test(url)) {
-     const file = `/tmp/aug-cover-${url.replace(/[^a-zA-Z0-9]/g, "").slice(-44)}`
+     const file = `${RUNTIME_DIR}/aug-cover-${url.replace(/[^a-zA-Z0-9]/g, "").slice(-44)}`
      execAsync(["sh", "-c", '[ -s "$1" ] || curl -sLf --max-time 8 -o "$1" "$2"', "sh", file, url]).then(() => apply(file)).catch(() => {})
  }
 }

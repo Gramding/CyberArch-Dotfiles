@@ -213,19 +213,18 @@ else
 fi
 command -v quickshell >/dev/null || warn "quickshell binary missing |::| login screen will not launch"
 
-hdr "PACMAN HOOK"
-HOOKSRC="$THEME/assets/pacman/cyberpunk-pkg-notify.hook"
+hdr "PACMAN HOOK · REMOVAL"
+# The old cyberpunk-pkg-notify hook made pacman run a script as root out of a
+# user-writable path ($CANON is a symlink to the clone). Anything that could write
+# there — a user-level compromise, a rogue AUR package, or an upstream `git pull` —
+# got root on the next `pacman -S`. The hook is gone; clean up old installs.
 HOOKDST="/etc/pacman.d/hooks/cyberpunk-pkg-notify.hook"
-if [ -f "$HOOKSRC" ]; then
-  printf "${CYAN}▸ Installing pacman hook :: sudo password required${R}\n"
-  printf "${DIM}  This will toggle the Streetcred reputation animation when installing packages or AUR updates available${R}\n"
-  if sed "s|__THEME__|$CANON|g" "$HOOKSRC" | sudo tee "$HOOKDST" >/dev/null; then
-    ok "install-notification hook → $HOOKDST"
-  else
-    warn "hook not installed (needs root) |::| run: sed \"s|__THEME__|$CANON|g\" \"$HOOKSRC\" | sudo tee \"$HOOKDST\""
-  fi
+if [ -f "$HOOKDST" ]; then
+  printf "${CYAN}▸ Removing legacy root hook :: sudo password required${R}\n"
+  if sudo rm -f "$HOOKDST"; then ok "legacy pacman hook removed → $HOOKDST"
+  else warn "could not remove hook |::| run: sudo rm -f $HOOKDST"; fi
 else
-  warn "hook template missing at $HOOKSRC"
+  ok "no legacy pacman hook present"
 fi
 
 hdr "QUICKSHELL · login"

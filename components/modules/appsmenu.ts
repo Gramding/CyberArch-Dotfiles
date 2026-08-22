@@ -4,7 +4,7 @@ import { interval, timeout, execAsync } from "astal"
 import Gdk from "gi://Gdk?version=3.0"
 import Gtk from "gi://Gtk?version=3.0"
 import Gio from "gi://Gio"
-import { SCREEN_WIDTH, SCREEN_HEIGHT, CYBER_DIR } from "../../env.ts"
+import { SCREEN_WIDTH, SCREEN_HEIGHT, CYBER_DIR, RUNTIME_DIR } from "../../env.ts"
 import { NEON, f } from "./colors.ts"
 
 
@@ -19,7 +19,7 @@ const beep = () => { const t = Date.now(); if (t - lastBeep < 35) return; lastBe
 
 
 
-const MENU_LOCK = "/tmp/kiroshi_menu.lock"
+const MENU_LOCK = `${RUNTIME_DIR}/kiroshi_menu.lock`
 const startMenuLoop = () => execAsync(["sh", "-c",
  `touch '${MENU_LOCK}'; while [ -e '${MENU_LOCK}' ]; do ` +
  `pw-play --volume=2.0 "${AUDIO}/kiroshi_menu.ogg" 2>/dev/null || play -q -v 2.0 "${AUDIO}/kiroshi_menu.ogg" 2>/dev/null || { mpv --no-config --no-terminal --really-quiet --no-video --volume=200 "${AUDIO}/kiroshi_menu.ogg" 2>/dev/null || break; }; done`]).catch(() => {})

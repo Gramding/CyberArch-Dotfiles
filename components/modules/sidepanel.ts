@@ -6,7 +6,7 @@ import { Box, DrawingArea, EventBox, Keymode } from "../../widget.ts"
 import Gdk from "gi://Gdk?version=3.0"
 import GLib from "gi://GLib"
 import { interval, execAsync } from "astal"
-import { CYBER_DIR } from "../../env.ts"
+import { CYBER_DIR, RUNTIME_DIR } from "../../env.ts"
 import { makePlane, tiltText, strokePath, fillQuad, alertChip } from "./proj.ts"
 import { NEON } from "./colors.ts"
 import { createModal } from "./cmodal.ts"
@@ -20,6 +20,7 @@ const NETCOL: [number, number, number] = [255, 222, 105]
 const PGREEN: [number, number, number] = [176, 255, 157]
 const W = 320, H = 530
 const MAP_DX = 100
+const MAP_PNG = `${RUNTIME_DIR}/aug-map.png`
 const minimapBase = makePlane({ w: W, h: H, yaw: 24, pitch: 3, roll: -1, focal: 1300, dist: 1300, pad: 0 })
 const minimap = {
  ...minimapBase,
@@ -126,12 +127,12 @@ const fetchMap = async () => {
  const xt = Math.floor((geoLon + 180) / 360 * nn)
  const lr = geoLat * Math.PI / 180
  const yt = Math.floor((1 - Math.log(Math.tan(lr) + 1 / Math.cos(lr)) / Math.PI) / 2 * nn)
- const dir = "/tmp/aug-tiles", dl: string[] = []
+ const dir = `${RUNTIME_DIR}/aug-tiles`, dl: string[] = []
  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
  dl.push(`curl -sf --retry 3 --retry-delay 1 --retry-all-errors --max-time 15 -A 'cyberpunk-hud/1.0 (linux desktop)' 'https://a.basemaps.cartocdn.com/dark_nolabels/${z}/${xt + dx}/${yt + dy}.png' -o ${dir}/t${dl.length}.png`)
  await execAsync(["sh", "-c", `mkdir -p ${dir} && ${dl.join(" && ")}`])
- await execAsync(["sh", "-c", `magick montage ${dir}/t0.png ${dir}/t1.png ${dir}/t2.png ${dir}/t3.png ${dir}/t4.png ${dir}/t5.png ${dir}/t6.png ${dir}/t7.png ${dir}/t8.png -tile 3x3 -geometry +0+0 -background black ${dir}/grid.png && magick ${dir}/grid.png -modulate 108,42 /tmp/aug-map.png`])
- mapTile = Cairo.ImageSurface.createFromPNG("/tmp/aug-map.png"); mapVer++
+ await execAsync(["sh", "-c", `magick montage ${dir}/t0.png ${dir}/t1.png ${dir}/t2.png ${dir}/t3.png ${dir}/t4.png ${dir}/t5.png ${dir}/t6.png ${dir}/t7.png ${dir}/t8.png -tile 3x3 -geometry +0+0 -background black ${dir}/grid.png && magick ${dir}/grid.png -modulate 108,42 ${MAP_PNG}`])
+ mapTile = Cairo.ImageSurface.createFromPNG(MAP_PNG); mapVer++
  areas.forEach(a => a?.queue_draw())
  } catch (e) { print("[cyber] map:", e) }
 }
@@ -271,7 +272,7 @@ export const SidePanel = () => {
  refreshNet(); interval(15_000, refreshNet)
  refreshNetSpeed(); interval(1000, refreshNetSpeed)
  const area = DrawingArea({}); areas.push(area); area.set_size_request(plane.width, plane.height)
- try { mapTile = Cairo.ImageSurface.createFromPNG("/tmp/aug-map.png"); mapVer++ } catch {}
+ try { mapTile = Cairo.ImageSurface.createFromPNG(MAP_PNG); mapVer++ } catch {}
  let tick = 0
  area.connect("draw", (_w, ctx) => {
  const now = new Date()

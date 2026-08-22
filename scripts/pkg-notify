@@ -1,7 +1,15 @@
 #!/bin/sh
-# this fires from my pacman hook right after an install. the hook feeds the package names in on
-# stdin (thats what NeedsTargets does), i grab em and poke the running HUD over its socket so the
-# install bar pops up. runs as root cuz its a hook, but root can still write my user socket so np.
+# reads package names on stdin and pokes the running HUD over its socket so the install bar pops up.
+#
+# NOT wired to anything by default. It used to run from a pacman hook, but a hook Execs as root and
+# this script lives in the clone (user-writable), so anything that could write here — a user-level
+# compromise, a rogue AUR package, or an upstream `git pull` — got root on the next `pacman -S`.
+# The hook was removed for that reason.
+#
+# Do NOT point a /etc/pacman.d/hooks entry at this path. If you want the popup back, copy it to a
+# root-owned location first and hook *that*:
+#   sudo install -m 755 -o root -g root scripts/pkg-notify /usr/local/bin/cyberpunk-pkg-notify
+# Then root only ever runs a file your user account cannot rewrite.
 
 pkgs=$(cat | awk 'NF')
 [ -z "$pkgs" ] && exit 0
@@ -29,8 +37,9 @@ fi
 
 msg="pkg-installed ${title}|${info}"
 
-for s in /run/user/*/astal/cyberpunk.sock; do
-    [ -S "$s" ] || continue
-    printf '%s' "$msg" | socat - "UNIX-CONNECT:$s" >/dev/null 2>&1
-done
+# only this user's HUD — globbing /run/user/*/ leaked installed package names to every logged-in
+# user's socket on a multi-user box.
+SOCK="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/astal/cyberpunk.sock"
+[ -S "$SOCK" ] || exit 0
+printf '%s' "$msg" | socat - "UNIX-CONNECT:$SOCK" >/dev/null 2>&1
 exit 0

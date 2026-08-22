@@ -5,7 +5,7 @@ import { Layer, Exclusivity, Keymode } from "../../widget.ts"
 import { execAsync, interval, timeout } from "astal"
 import Gdk from "gi://Gdk?version=3.0"
 import GLib from "gi://GLib"
-import { CYBER_DIR, SCREEN_WIDTH, SCREEN_HEIGHT } from "../../env.ts"
+import { CYBER_DIR, SCREEN_WIDTH, SCREEN_HEIGHT, RUNTIME_DIR } from "../../env.ts"
 import { Anchor } from "../../widget.ts"
 import {
     Cairo, TITLE, MONO, ICONF, ch, RR, RG, RB, CR, CG, CB, CYAN, ACC, HEADER,
@@ -673,7 +673,7 @@ const BatCtrl = () => {
 const SYSY: [number, number, number] = [252 / 255, 238 / 255, 10 / 255]
 const SYSC: [number, number, number] = [94 / 255, 244 / 255, 248 / 255]
 const SYSR: [number, number, number] = [255 / 255, 42 / 255, 58 / 255]
-const SYS_LOCK = "/tmp/cyber-sysmon.lock"
+const SYS_LOCK = `${RUNTIME_DIR}/cyber-sysmon.lock`
 const SYS_AUDIO = `${CYBER_DIR}/assets/audio`
 const sysPlay = (f, vol, mvol) => sh(`setsid -f sh -c "play -q -v ${vol} '${SYS_AUDIO}/${f}' 2>/dev/null || mpv --no-video --really-quiet --volume=${mvol} '${SYS_AUDIO}/${f}' 2>/dev/null" >/dev/null 2>&1`)
 const sysSndOn = () => {
