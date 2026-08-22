@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
 DIR=$(cd "$(dirname "$0")" && pwd)
 AUDIO="$DIR/../assets/audio"
-HUM_LOCK="/tmp/overkill_hum.lock"
+
+# Runtime state lives in the per-user runtime dir (0700, tmpfs, cleared on logout) rather than /tmp.
+# These are named files that have to be found again across invocations, so mktemp's random names
+# don't fit — but predictable /tmp paths let any other local user pre-create or symlink them, and
+# overkill.py below is written and then executed, which makes that a code-execution hole on a
+# shared box.
+RUNDIR="${XDG_RUNTIME_DIR:-$HOME/.cache}/cyberpunk"
+mkdir -p "$RUNDIR" 2>/dev/null || true
+chmod 700 "$RUNDIR" 2>/dev/null || true
+export OVERKILL_PID_FILE="$RUNDIR/overkill-daemon.pid"
+HUM_LOCK="$RUNDIR/overkill_hum.lock"
+PY_FILE="$RUNDIR/overkill.py"
 play_snd() {
     setsid -f sh -c "play -q -v $2 \"$AUDIO/$1\" 2>/dev/null || mpv --no-video --really-quiet --volume=$3 \"$AUDIO/$1\" 2>/dev/null" >/dev/null 2>&1
 }
@@ -14,19 +25,19 @@ stop_hum() {
     pkill -f 'kiroshi_menu[.]ogg' 2>/dev/null
 }
 
-DAEMON_PID=/tmp/overkill-daemon.pid
+DAEMON_PID="$OVERKILL_PID_FILE"
 daemon_alive() { [ -f "$DAEMON_PID" ] && kill -0 "$(cat "$DAEMON_PID" 2>/dev/null)" 2>/dev/null; }
 ensure_daemon() {
     daemon_alive && return 0
     dump_py
-    setsid -f python3 /tmp/overkill.py >/dev/null 2>&1
+    setsid -f python3 "$PY_FILE" >/dev/null 2>&1
     i=0; while [ "$i" -lt 250 ]; do daemon_alive && return 0; sleep 0.02; i=$((i+1)); done
     return 1
 }
 # the whole overlay UI lives in this python heredoc; it boots once and stays resident (hidden),
 # so deploying kill mode is just a signal away instead of a ~2s python+gtk cold start every time.
 dump_py() {
-    cat > /tmp/overkill.py << 'PYEOF'
+    cat > "$PY_FILE" << 'PYEOF'
 #!/usr/bin/env python3
 import gi, signal, math, cairo, subprocess, random, os, socket
 gi.require_version('Gtk', '3.0')
@@ -420,7 +431,7 @@ win = W()
 GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, win.start_outro)   # play outro + hide
 GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR2, win.activate_signal)  # wake + show
 try:
-    with open("/tmp/overkill-daemon.pid", "w") as fp: fp.write(str(os.getpid()))
+    with open(os.environ["OVERKILL_PID_FILE"], "w") as fp: fp.write(str(os.getpid()))
 except Exception: pass
 Gtk.main()
 PYEOF

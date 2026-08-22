@@ -1,7 +1,7 @@
 import { App, Window, Box, DrawingArea, activeMonitor, monitorAtPoint } from "../../widget.ts"
 import { Anchor, Layer, Exclusivity } from "../../widget.ts"
 import { interval, timeout, execAsync } from "astal"
-import { SCREEN_WIDTH, SCREEN_HEIGHT, CYBER_DIR } from "../../env.ts"
+import { SCREEN_WIDTH, SCREEN_HEIGHT, CYBER_DIR, RUNTIME_DIR } from "../../env.ts"
 import { NEON, f, RGB } from "./colors.ts"
 import { makePlane, tiltText, fillQuad } from "./proj.ts"
 import { showToast } from "./toast.ts"
@@ -331,7 +331,7 @@ export const WsAnimWindow = () => {
          win: null, area, prog: 0, timer: null, seed: 0, start: 0, busy: false,
          cachePix: null, frames: [], small: null, pixbuf: null, lastCap: 0, capPending: false,
          x, y, w, h, hw: Math.max(1, w >> 1), hh: Math.max(1, h >> 1),
-         tmp: `/tmp/aug_ws_frame_${i}.ppm`, cache: `/tmp/aug_ws_cache_${i}.ppm`,
+         tmp: `${RUNTIME_DIR}/aug_ws_frame_${i}.ppm`, cache: `${RUNTIME_DIR}/aug_ws_cache_${i}.ppm`,
      }
      area.set_size_request(w, h)
      area.connect("draw", (_w, ctx) => (drawWs(ctx, st, st.prog), false))

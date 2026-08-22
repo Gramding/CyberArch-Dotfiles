@@ -1,6 +1,5 @@
 import Gdk from "gi://Gdk?version=3.0"
 import GLib from "gi://GLib"
-import Gio from "gi://Gio"
 import { execAsync } from "astal"
 import { createModal } from "./cmodal.ts"
 import { txt as gtxt, pango as gpango, RED, RACC, Cairo, HEADER as GHEAD, TITLE as GTITLE, MONO as GMONO } from "./glass.ts"
@@ -65,8 +64,6 @@ let statusUntil = 0
 let searchTimer: number | null = null
 let focusField = "filter"
 let mDate = "", mTime = ""
-let authOpen = false, authPw = "", authMsg = "", authBusy = false
-let authArgs: string[] | null = null, authLabel = "", drawingAuth = false
 
 const say = (s: string) => { status = s; statusUntil = Date.now() + 4500; modal?.requestDraw() }
 
@@ -108,32 +105,21 @@ const queueFilter = () => {
     searchTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 160, () => { searchTimer = null; runFilter(); return false })
 }
 
-const askAuth = (args: string[], label: string) => {
-    authArgs = args; authLabel = label; authPw = ""; authBusy = false
-    authMsg = "ROOT AUTHORIZATION REQUIRED"
-    authOpen = true; modal?.requestDraw()
-}
+// timedatectl carries its own polkit actions (org.freedesktop.timedate1.set-timezone / set-time /
+// set-ntp), so it is called plainly and the session's polkit agent handles authorization. This used
+// to prompt for the sudo password in a Cairo field inside the HUD and pipe it to `sudo -S`; a rice
+// widget is exactly the wrong thing to train yourself to type a root password into, and the polkit
+// agent is the spoof-resistant prompt built for the job.
 const runPriv = async (args: string[], label: string) => {
-    try { await execAsync(["sudo", "-n", "timedatectl", ...args]); await readState(); seedManual(); say(label) }
-    catch (e) { askAuth(args, label) }
+    try { await execAsync(["timedatectl", ...args]); await readState(); seedManual(); say(label) }
+    catch (e) {
+        const m = String(e)
+        if (/interactive authentication required/i.test(m)) say("NO POLKIT AGENT — CANNOT AUTHORIZE")
+        else if (/not authorized|access denied|dismissed/i.test(m)) say("AUTHORIZATION DENIED")
+        else say("TIMEDATECTL FAILED — SEE LOG")
+        print("[cyber] timedatectl:", e)
+    }
 }
-const submitAuth = () => {
-    if (!authArgs || authBusy) return
-    if (!authPw) { authMsg = "ENTER PASSCODE"; modal?.requestDraw(); return }
-    authBusy = true; authMsg = "VERIFYING…"; modal?.requestDraw()
-    try {
-        const proc = Gio.Subprocess.new(["sudo", "-S", "-p", "", "timedatectl", ...authArgs],
-            Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE)
-        proc.communicate_utf8_async(authPw + "\n", null, (pr, res) => {
-            let ok = false
-            try { pr.communicate_utf8_finish(res); ok = pr.get_successful() } catch (e) { ok = false }
-            authPw = ""; authBusy = false
-            if (ok) { authOpen = false; authArgs = null; readState(); seedManual(); say(authLabel) }
-            else { authMsg = "ACCESS DENIED — RETRY"; modal?.requestDraw() }
-        })
-    } catch (e) { authBusy = false; authMsg = "SUDO UNAVAILABLE"; print("[cyber] auth:", e); modal?.requestDraw() }
-}
-const cancelAuth = () => { authOpen = false; authPw = ""; authArgs = null; modal?.requestDraw() }
 const setZone = (z: string) => runPriv(["set-timezone", z], `TIMEZONE SET · ${z}`)
 const setNtp = (on: boolean) => runPriv(["set-ntp", on ? "true" : "false"], on ? "NET SYNC ON" : "NET SYNC OFF")
 const pushTime = (stamp: string, label: string) => {
@@ -160,7 +146,7 @@ const chip = (ctx, g, x, y, w, h, label, on, act, col = ARA) => {
     if (on) { ctx.setSourceRGBA(YEL[0], YEL[1], YEL[2], 0.9); ctx.rectangle(x, y, w, 2); ctx.fill() }
     ctx.selectFontFace(GTITLE, 0, 1); ctx.setFontSize(11)
     gtxt(ctx, x + w / 2 - ctx.textExtents(label).width / 2, y + h / 2 + 4, label, GTITLE, 11, c, on ? 1 : 0.8, 1, on ? 0.35 : 0)
-    if (!authOpen || drawingAuth) g.push({ kind: "chip", bx0: x, by0: y, bx1: x + w, by1: y + h, on: act })
+    g.push({ kind: "chip", bx0: x, by0: y, bx1: x + w, by1: y + h, on: act })
 }
 
 const field = (ctx, g, x, y, w, h, label, value, id, ph) => {
@@ -173,7 +159,7 @@ const field = (ctx, g, x, y, w, h, label, value, id, ph) => {
     gtxt(ctx, x + 8, y - 8, label, GMONO, 7.5, act ? YEL : ARA, act ? 0.85 : 0.45)
     const cur = act && (Math.floor(Date.now() / 450) % 2) ? "▌" : ""
     gpango(ctx, x + 12, y + h / 2 + 5, (value || ph) + cur, GTITLE, act, 14, value ? (act ? YEL : AC2) : ARA, value ? 0.97 : 0.35)
-    if (!authOpen) g.push({ kind: "field", bx0: x, by0: y, bx1: x + w, by1: y + h, on: () => { focusField = id; modal.requestDraw() } })
+    g.push({ kind: "field", bx0: x, by0: y, bx1: x + w, by1: y + h, on: () => { focusField = id; modal.requestDraw() } })
 }
 
 const ensure = () => {
@@ -185,13 +171,6 @@ const ensure = () => {
         onFrame: () => { tick++; if (tick % 8 === 0) modal.requestDraw() },
         onScroll: (d) => { scroll = Math.max(0, Math.min(Math.max(0, results.length - 1), scroll + d * 2)); modal.requestDraw() },
         onKey: (k) => {
-            if (authOpen) {
-                if (k === Gdk.KEY_Return || k === Gdk.KEY_KP_Enter) { submitAuth(); return }
-                if (k === Gdk.KEY_BackSpace) authPw = authPw.slice(0, -1)
-                else { const u = Gdk.keyval_to_unicode(k); if (u >= 32 && u < 0x10000) authPw += String.fromCharCode(u); else return }
-                if (authMsg !== "ROOT AUTHORIZATION REQUIRED") authMsg = "ROOT AUTHORIZATION REQUIRED"
-                modal.requestDraw(); return
-            }
             if (k === Gdk.KEY_Tab) {
                 focusField = focusField === "filter" ? "date" : focusField === "date" ? "time" : "filter"
                 modal.requestDraw(); return
@@ -265,7 +244,7 @@ const ensure = () => {
             const fcur = focusField === "filter" && (Math.floor(Date.now() / 450) % 2) ? "▌" : ""
             gpango(ctx, x + 14, by + bh / 2 + 5, query ? query + fcur : "Filter timezones…", GTITLE, false, 12, query ? AC2 : ARA, query ? 0.96 : 0.4)
             gtxt(ctx, x + w - ctx.textExtents(hint).width - 12, by + bh / 2 + 4, hint, GMONO, 8.5, ARA, 0.5)
-            if (!authOpen) g.push({ kind: "field", bx0: x, by0: by, bx1: x + w, by1: by + bh, on: () => { focusField = "filter"; modal.requestDraw() } })
+            g.push({ kind: "field", bx0: x, by0: by, bx1: x + w, by1: by + bh, on: () => { focusField = "filter"; modal.requestDraw() } })
 
             const ly = by + bh + 14, lh = (g.Y + g.h) - ly - 26, rowH = 24, gap = 4, step = rowH + gap
             const vis = Math.max(1, Math.floor(lh / step))
@@ -287,39 +266,12 @@ const ensure = () => {
                 try { tzn = new Date().toLocaleTimeString("en-GB", { timeZone: z, hour: "2-digit", minute: "2-digit" }) } catch {}
                 ctx.selectFontFace(GMONO, 0, 0); ctx.setFontSize(9)
                 gtxt(ctx, x + w - ctx.textExtents(tzn).width - 12, ry + rowH / 2 + 4, tzn, GMONO, 9, active ? YEL : ARA, 0.65)
-                if (!authOpen) g.push({ kind: "zone", bx0: x, by0: ry, bx1: x + w, by1: ry + rowH, on: () => setZone(z) })
+                g.push({ kind: "zone", bx0: x, by0: ry, bx1: x + w, by1: ry + rowH, on: () => setZone(z) })
             }
             ctx.restore()
             const live = status && Date.now() < statusUntil
             gtxt(ctx, x, g.Y + g.h - 10, live ? status : "TAB switches field · type · click a zone · ESC closes", GMONO, 8.5, live ? YEL : ARA, live ? 0.9 : 0.5)
 
-            if (authOpen) {
-                ctx.setSourceRGBA(0, 0, 0, 0.72); ctx.rectangle(g.X, g.Y, g.w, g.h); ctx.fill()
-                const aw = w - 40, ah = 190, ax = x + 20, ay = g.Y + (g.h - ah) / 2
-                chamfer(ctx, ax, ay, aw, ah, 16)
-                ctx.setSourceRGBA(HOT[0] * 0.3, HOT[1] * 0.12, HOT[2] * 0.14, 0.9); ctx.fill()
-                hatch(ctx, ax, ay, aw, 30, HOT, 0.16)
-                chamfer(ctx, ax, ay, aw, ah, 16)
-                ctx.setSourceRGBA(HOT[0], HOT[1], HOT[2], 0.95); ctx.setLineWidth(1.6); ctx.stroke()
-                bracket(ctx, ax + 6, ay + 6, aw - 12, ah - 12, YEL, 0.7, 12)
-                ctx.setSourceRGBA(HOT[0], HOT[1], HOT[2], 0.9); ctx.rectangle(ax, ay, aw, 3); ctx.fill()
-                gtxt(ctx, ax + 18, ay + 30, "// BREACH PROTOCOL — ROOT ACCESS", GMONO, 9, YEL, 0.85)
-                gtxt(ctx, ax + 18, ay + 52, authMsg, GTITLE, 13, authMsg.indexOf("DENIED") >= 0 ? HOT : AC2, 0.98, 1, 0.3)
-                const px = ax + 18, py = ay + 66, pw = aw - 36, ph = 34
-                chamfer(ctx, px, py, pw, ph, 8)
-                ctx.setSourceRGBA(0, 0, 0, 0.6); ctx.fill()
-                chamfer(ctx, px, py, pw, ph, 8)
-                ctx.setSourceRGBA(YEL[0], YEL[1], YEL[2], 0.8); ctx.setLineWidth(1.1); ctx.stroke()
-                const dots = "▮".repeat(Math.min(28, authPw.length))
-                const cur = (Math.floor(Date.now() / 420) % 2) && !authBusy ? "▌" : ""
-                gpango(ctx, px + 12, py + ph / 2 + 5, dots + cur || (authBusy ? "…" : "PASSCODE"), GTITLE, true, 13, authPw ? YEL : ARA, authPw ? 0.95 : 0.35)
-                gtxt(ctx, px, py + ph + 18, `CMD  timedatectl ${(authArgs || []).join(" ")}`.slice(0, 58), GMONO, 8, ARA, 0.5)
-                const bw = (pw - 10) / 2, byy = py + ph + 30
-                drawingAuth = true
-                chip(ctx, g, px, byy, bw, 30, authBusy ? "…" : "AUTHORIZE", !authBusy, () => submitAuth(), YEL)
-                chip(ctx, g, px + bw + 10, byy, bw, 30, "CANCEL", false, cancelAuth, HOT)
-                drawingAuth = false
-            }
         },
     })
 }

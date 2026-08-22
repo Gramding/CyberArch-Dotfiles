@@ -14,4 +14,10 @@ fi
 
 [ -n "$display" ] || exit 1
 
-exec env WAYLAND_DISPLAY="$display" "$AGS_BIN" run --gtk 3 "$CORE_TS" >/tmp/cyberhypr-debug.log 2>&1
+# log to the per-user runtime dir (0700); a predictable /tmp path can be symlinked by another
+# local user to make this clobber a file of theirs choosing that we can write
+RUNDIR="${XDG_RUNTIME_DIR:-$HOME/.cache}/cyberpunk"
+mkdir -p "$RUNDIR" 2>/dev/null || true
+chmod 700 "$RUNDIR" 2>/dev/null || true
+
+exec env WAYLAND_DISPLAY="$display" "$AGS_BIN" run --gtk 3 "$CORE_TS" >"$RUNDIR/cyberhypr-debug.log" 2>&1

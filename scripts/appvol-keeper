@@ -5,7 +5,15 @@
 # <application.name>=<percent>      e.g.  Spotify=60
 STATE="${1:-$HOME/.cache/cyberpunk/appvol.conf}"
 mkdir -p "$(dirname "$STATE")"; touch "$STATE"
-exec 9>"$HOME/.cache/cyberpunk/appvol.lock" 2>/dev/null || exec 9>"/tmp/cyber-appvol.lock"
+# fall back to the per-user runtime dir rather than a predictable /tmp path another local user
+# could pre-create
+mkdir -p "$HOME/.cache/cyberpunk" 2>/dev/null || true
+exec 9>"$HOME/.cache/cyberpunk/appvol.lock" 2>/dev/null || {
+    RUNDIR="${XDG_RUNTIME_DIR:-$HOME/.cache}/cyberpunk"
+    mkdir -p "$RUNDIR" 2>/dev/null || true
+    chmod 700 "$RUNDIR" 2>/dev/null || true
+    exec 9>"$RUNDIR/appvol.lock"
+}
 flock -n 9 || exit 0
 command -v pactl >/dev/null 2>&1 || exit 0
 apply_all() {
