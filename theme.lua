@@ -36,30 +36,36 @@ end
 -- `>` redirect when it detects another shell (it matches on ~/.config/caelestia), which would
 -- wipe a monitor block living there. This file is on the far side of the `require("theme")`,
 -- so it survives that.
+-- hl.monitor takes a table, not a monitor string. Per Hyprland's LuaBindingsConfigRules.cpp:
+-- 'output' is required and must be a string; 'mode', 'position' and 'scale' are string fields
+-- (defaults "preferred" / "auto" / "auto"); 'transform' is an integer 0-7. Position is the
+-- classic "<x>x<y>" offset form, so negative coordinates go in as-is.
 local monitors = {
-    "DP-1,1920x1080@60,-1920x0,1",
-    "HDMI-A-1,3840x2160@59.997,0x0,1",
-    "DP-2,1920x1080@60,3840x0,1,transform,3",
+    { output = "DP-1",     mode = "1920x1080@60",     position = "-1920x0", scale = "1" },
+    { output = "HDMI-A-1", mode = "3840x2160@59.997", position = "0x0",     scale = "1" },
+    { output = "DP-2",     mode = "1920x1080@60",     position = "3840x0",  scale = "1", transform = 3 },
 }
 
-local function monitors_via_hyprctl()
-    for _, m in ipairs(monitors) do
-        once('hyprctl keyword monitor "' .. m .. '"')
-    end
+-- Same layout rendered as a monitor= keyword, for the hyprctl path below.
+local function monitor_string(m)
+    local s = m.output .. "," .. (m.mode or "preferred") .. "," .. (m.position or "auto") .. "," .. (m.scale or "auto")
+    if m.transform then s = s .. ",transform," .. m.transform end
+    return s
 end
 
--- Set this to true if the layout doesn't apply on login. The pcall below catches an hl.monitor
--- that doesn't exist, but not one that exists as a silent no-op — if your build swallows unknown
--- keywords, nothing errors and nothing happens either. This flag forces the hyprctl path.
--- Verify which happened with:  hyprctl monitors -j | jq -r '.[] | "\(.name) \(.x)x\(.y)"'
+-- Set this to true to force the hyprctl path if the layout ever stops applying.
+-- Verify which took with:  hyprctl monitors -j | jq -r '.[] | "\(.name) \(.x)x\(.y) t=\(.transform)"'
 local MONITORS_VIA_HYPRCTL = false
 
-if MONITORS_VIA_HYPRCTL then
-    monitors_via_hyprctl()
-elseif not pcall(function()
+-- Guarded on type() rather than pcall: hl.monitor reports bad fields through addError and returns
+-- normally, so a pcall never sees them — it only catches the build-has-no-hl.monitor case, which
+-- this check covers directly and more cheaply.
+if not MONITORS_VIA_HYPRCTL and type(hl.monitor) == "function" then
     for _, m in ipairs(monitors) do hl.monitor(m) end
-end) then
-    monitors_via_hyprctl()
+else
+    for _, m in ipairs(monitors) do
+        once('hyprctl keyword monitor "' .. monitor_string(m) .. '"')
+    end
 end
 
 hl.exec_cmd("killall -9 waybar mako dunst swaync 2>/dev/null; systemctl --user stop waybar mako dunst swaync 2>/dev/null || true")
