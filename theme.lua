@@ -146,7 +146,7 @@ hl.bind("SUPER + CTRL + Delete", hl.dsp.exec_cmd("hyprctl reload"))
 --------------------------------------------------------------------------------
 hl.bind(MOD .. " + Q", hl.dsp.window.close())                                       -- niri close-window
 hl.bind(MOD .. " + V", hl.dsp.window.float({ action = "toggle" }))                   -- niri toggle-window-floating
-hl.bind(MOD .. " + F", hl.dsp.window.fullscreen({ mode = "maximize" }))              -- niri maximize-column
+hl.bind(MOD .. " + F", hl.dsp.window.fullscreen({ mode = "maximized" }))             -- niri maximize-column
 hl.bind(MOD .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))    -- niri fullscreen-window
 hl.bind(MOD .. " + C", hl.dsp.exec_cmd("hyprctl dispatch centerwindow"))             -- niri center-column (floating only)
 
