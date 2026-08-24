@@ -164,22 +164,7 @@ The installer will download any required dependencies, install the theme, quicks
 
 ## ⌁ Keybinds
 
-There are two modifiers, both set at the top of `theme.lua`:
-
-| Variable | Default | Drives |
-| --- | --- | --- |
-| **`MOD`** | `ALT` | Window management — focus, move, workspaces, resize, monitors |
-| **`themeMod`** | `SUPER + SHIFT` | The HUD: modals, widgets, capture |
-
-`MOD` defaults to `ALT` because these binds were ported from a niri config that used `mod-key "Alt"`. If Alt starts fighting with application shortcuts — `Alt+Tab`, `Alt+F4`, and the `Alt+<letter>` menu mnemonics in GTK/Qt apps all live there — change the one line:
-
-```lua
-local MOD = "SUPER"
-```
-
-Every window-management bind follows it. `themeMod` derives from `MOD` automatically and shifts to `SUPER + ALT` when `MOD` is `SUPER`, so the two can never collide.
-
-Open the full cheat-sheet with all keybinds anytime with **`SUPER+SHIFT+H`**.
+The theme modifier is **`$themeMod = SUPER + SHIFT`** (change it at the top of `theme.lua`). Open the full cheat-sheet with all keybinds anytime with **`SUPER+SHIFT+H`**.
 
 ### HUD & widgets
 
@@ -212,78 +197,20 @@ Open the full cheat-sheet with all keybinds anytime with **`SUPER+SHIFT+H`**.
 | `SUPER + SHIFT + R` | Start / stop screen recording |
 | `SUPER + SHIFT + K` | **Kill mode** (click a window to kill · `ESC` exits) |
 | `SUPER + SHIFT + L` | Lock screen |
-| `SUPER + D` | Peek desktop (hide windows) — skipped when `MOD` is `SUPER` |
-| `MOD + SHIFT + S` | Screenshot (region) |
-| `MOD + CTRL + S` | Screenshot (whole active monitor) |
-| `Print` | Screenshot (region) |
-| `CTRL + SHIFT + ALT + R` | Restart the AGS HUD |
-| `SUPER + CTRL + Delete` | `hyprctl reload` |
-
-### Programs
-
-| Keybind | Action |
-| --- | --- |
-| `MOD + T` | Terminal (`TERM` at the top of `theme.lua`, default `rio`) |
-| `MOD + D` | App launcher |
-| `MOD + E` | File manager (`kitty -e spf`) |
-| `MOD + M` | Run `~/Desktop/mount.sh` |
-| `MOD + L` | Lock screen |
-| `MOD + P` | Power menu |
-| `SUPER + TAB` | App launcher — skipped when `MOD` is `SUPER` |
+| `SUPER + D` | Peek desktop (hide windows) |
 
 ### Window management
 
 | Keybind | Action |
 | --- | --- |
-| `MOD + Q` | Close window |
-| `MOD + V` | Float / tile toggle |
-| `MOD + F` | Maximize |
-| `MOD + SHIFT + F` | Fullscreen |
-| `MOD + C` | Center window (floating only) |
-| `MOD + ← → ↑ ↓` / `MOD + H J K` | Move focus |
-| `MOD + Tab` | Cycle to next window |
-| `MOD + CTRL + ← → ↑ ↓` / `MOD + CTRL + H J K L` | Move window |
-| `MOD + −` / `MOD + =` | Narrower / wider |
-| `MOD + SHIFT + −` / `MOD + SHIFT + =` | Shorter / taller |
+| `SUPER + SHIFT + F` | Fullscreen toggle |
+| `SUPER + F` | Float / tile toggle |
+| `SUPER + ← → ↑ ↓` | Move focus |
+| `SUPER + SHIFT + ← → ↑ ↓` | Move window |
 | `CTRL + SHIFT + ← → ↑ ↓` | Resize window |
-| `MOD + LMB` / `MOD + RMB` | Drag / resize with the mouse |
-
-### Monitors
-
-| Keybind | Action |
-| --- | --- |
-| `MOD + SHIFT + ← → ↑ ↓` / `MOD + SHIFT + H J K L` | Focus monitor |
-| `MOD + SHIFT + CTRL + ← → ↑ ↓` / `MOD + SHIFT + CTRL + H L` | Move window to monitor |
-
-The monitor layout itself lives in the `monitors` table near the top of `theme.lua` — not in `hyprland.lua`, because `install.sh` overwrites that file when it detects another desktop shell. Set `MONITORS_VIA_HYPRCTL = true` if your Hyprland build has no `hl.monitor` binding.
-
-### Workspaces
-
-| Keybind | Action |
-| --- | --- |
-| `MOD + 1…0` | Switch workspace (with the glitch transition) |
-| `MOD + CTRL + 1…0` | Send window to workspace |
-| `SUPER + 1…0` | Switch workspace — skipped when `MOD` is `SUPER` |
-| `MOD + Page Up` / `Page Down`, `MOD + I` / `U` | Previous / next workspace |
-| `MOD + CTRL + Page Up` / `Page Down`, `MOD + CTRL + I` / `U` | Send window to previous / next workspace |
-| `MOD + scroll up / down` | Previous / next workspace |
+| `SUPER + 1…0` | Switch workspace (with the glitch transition) |
+| `ALT + SHIFT + 1/2/3/4/5...` | Send window to workspace |
 | 3-finger swipe (If using notebook)  ← / → | Previous / next workspace |
-
-### Media keys
-
-| Keybind | Action |
-| --- | --- |
-| `XF86AudioRaiseVolume` / `LowerVolume` | Volume ±10% |
-| `XF86AudioMute` / `XF86AudioMicMute` | Mute output / microphone |
-| `XF86MonBrightnessUp` / `Down` | Brightness ±10% |
-
-### Session
-
-| Keybind | Action |
-| --- | --- |
-| `MOD + SHIFT + P` | Power off monitors (`dpms off`) |
-| `MOD + SHIFT + E` / `CTRL + ALT + Delete` | Exit Hyprland |
-| `MOD + SHIFT + /` | Keybind cheat-sheet |
 
 ---
 
