@@ -23,6 +23,7 @@ REPO=(
   gjs grim wf-recorder wl-clipboard networkmanager bluez-utils curl
   wireplumber playerctl brightnessctl power-profiles-daemon upower
   hypridle socat jq rofi libnotify sassc kitty kvantum kvantum-qt5 wget fuse2 sqlite3 pacman-contrib awww
+  polkit udisks2 gvfs
   base-devel pkgconf cmake cpio gcc lib32-libelf lib32-glibc glibc
   pipewire pipewire-audio pipewire-pulse libpulse mpv ffmpeg sox
   ttf-jetbrains-mono ttf-firacode-nerd ttf-nerd-fonts-symbols
@@ -245,6 +246,28 @@ if command -v qs >/dev/null 2>&1 && qs --version >/dev/null 2>&1; then
   ok "quickshell ready ($(qs --version 2>/dev/null | head -1 | cut -d' ' -f1-2))"
 else
   err "qs not executable |::| run: sudo pacman -Syu to update qt6, then re-run."
+fi
+
+hdr "POLKIT AGENT"
+# Without an authentication agent, polkit refuses instead of prompting: nautilus can't mount
+# external drives and the HUD's system-time modal fails with "NO POLKIT AGENT". scripts/polkit-agent
+# starts whichever agent is present at login, so this only has to make sure one exists.
+#
+# Deliberately not in the REPO array: that list is installed with a single pacman -S that exits the
+# installer on failure, so one package name that doesn't resolve would abort the whole install.
+# Here a miss is just a warning.
+if pacman -Qq hyprpolkitagent polkit-kde-agent polkit-gnome lxqt-policykit mate-polkit >/dev/null 2>&1; then
+  ok "polkit agent already installed"
+else
+  step "installing a polkit authentication agent…"
+  if sudo pacman -S --needed --noconfirm hyprpolkitagent >/dev/null 2>&1; then
+    ok "hyprpolkitagent installed"
+  elif sudo pacman -S --needed --noconfirm polkit-kde-agent >/dev/null 2>&1; then
+    ok "polkit-kde-agent installed"
+  else
+    warn "no polkit agent installed |::| mounting drives and setting the time will be refused."
+    warn "install one manually: sudo pacman -S hyprpolkitagent   (or polkit-kde-agent)"
+  fi
 fi
 
 hdr "LOCKSCREEN · PAM service"
