@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Starts a polkit authentication agent for the session, if one isn't already running.
+#
+# Without an agent, anything that asks polkit for authorization gets refused rather than prompting:
+# nautilus can't mount external drives, and the HUD's system-time modal fails with
+# "NO POLKIT AGENT — CANNOT AUTHORIZE" (it calls timedatectl and lets polkit handle auth).
+#
+# The theme doesn't ship or depend on a particular agent, so try the usual ones in order and
+# prefer the Hyprland-native one. Install any of them and this picks it up on the next login.
+
+# Already running? Don't stack a second one — two agents fight over the same registration.
+if pgrep -af 'polkit.*(agent|authentication)' 2>/dev/null | grep -qv 'polkit-agent-helper'; then
+    exit 0
+fi
+
+# Candidates: bare command names are looked up on PATH, absolute paths are tested directly.
+CANDIDATES=(
+    hyprpolkitagent
+    /usr/lib/hyprpolkitagent
+    /usr/lib/polkit-kde-authentication-agent-1
+    /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+    lxqt-policykit-agent
+    /usr/lib/mate-polkit/polkit-mate-authentication-agent-1
+    /usr/lib/xfce-polkit/xfce-polkit
+)
+
+for agent in "${CANDIDATES[@]}"; do
+    if [ -x "$agent" ] || command -v "$agent" >/dev/null 2>&1; then
+        setsid -f "$agent" >/dev/null 2>&1
+        exit 0
+    fi
+done
+
+command -v notify-send >/dev/null 2>&1 && \
+    notify-send -u critical "Cyberpunk HUD" \
+    "No polkit agent found — mounting drives and setting the system time will be refused. Install one of: hyprpolkitagent, polkit-kde-agent, polkit-gnome" 2>/dev/null
+exit 1
