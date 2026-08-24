@@ -85,6 +85,7 @@ hl.exec_cmd(os.getenv("HOME") .. "/.local/bin/ags quit -i cyberpunk 2>/dev/null"
 hl.exec_cmd("sleep 1 && " .. cyberpunk .. "/scripts/launch-theme")
 hl.exec_cmd(cyberpunk .. "/scripts/ws pin")
 hl.exec_cmd("awww img " .. os.getenv("HOME") .. "/.config/hypr/themes/cyberpunk/assets/img/lucy_wallpaper.png")
+once(cyberpunk .. "/scripts/polkit-agent")
 once(cyberpunk .. "/components/login/lock.sh")
 
 hl.exec_cmd("mkdir -p " .. os.getenv("HOME") .. "/.config/kitty && ln -sfn " .. cyberpunk .. "/assets/kitty/kitty.conf " .. os.getenv("HOME") .. "/.config/kitty/kitty.conf")
