@@ -339,12 +339,37 @@ if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
     fish -c "omf install dangerous" || true
     fish -c "set -U fish_key_bindings fish_vi_key_bindings" 2>/dev/null || true
     fish -c "set -U dangerous_nogreeting" 2>/dev/null || true
+
+    # The theme's git-status counter calls egrep six times per prompt render, and grep >= 3.8
+    # warns on every one of them, so the prompt spams six "egrep is obsolescent" lines inside
+    # any git repo. Upstream's file, so `omf update` reverts this — rerun install.sh after.
+    DANGEROUS_RP="$HOME/.local/share/omf/themes/dangerous/fish_right_prompt.fish"
+    if [ -f "$DANGEROUS_RP" ] && grep -q 'egrep -c' "$DANGEROUS_RP" 2>/dev/null; then
+      if sed -i 's/\begrep -c/grep -Ec/g' "$DANGEROUS_RP"; then
+        ok "patched the dangerous theme's egrep calls (silences the prompt warnings)"
+      else
+        warn "couldn't patch $DANGEROUS_RP |::| the prompt will warn about egrep in git repos"
+      fi
+    fi
   fi
   grep -q 'set -U fish_key_bindings fish_vi_key_bindings' "$CFG" 2>/dev/null || sed -i '1i set -U fish_key_bindings fish_vi_key_bindings' "$CFG" || true
   grep -q dangerous_nogreeting "$CFG" 2>/dev/null || sed -i '2i set -U dangerous_nogreeting' "$CFG" || true
   sed -i 's|^[[:space:]]*starship init.*|#&|' "$CFG" 2>/dev/null || true
+  # The splash needs the kitty graphics protocol, so gate it on the terminal actually being kitty
+  # and not merely on the kitten binary existing. kitty is a hard dependency of this rice, so
+  # `type -q kitten` is true in every terminal, and the splash used to fire inside the theme's own
+  # cool-retro-term and rio windows — where kitten icat aborts with "Terminal does not support
+  # reporting screen sizes in pixels" on each new shell.
   if ! grep -q samurai.png "$CFG" 2>/dev/null; then
-    printf '\nif status is-interactive\n    if type -q kitten\n        kitten icat --align left $HOME/.config/hypr/themes/cyberpunk/assets/cool-retro-term/samurai.png\n    end\nend\n' >> "$CFG"
+    printf '\nif status is-interactive\n    if type -q kitten; and test "$TERM" = xterm-kitty\n        kitten icat --align left $HOME/.config/hypr/themes/cyberpunk/assets/cool-retro-term/samurai.png\n    end\nend\n' >> "$CFG"
+  elif grep -q '^[[:space:]]*if type -q kitten$' "$CFG" 2>/dev/null; then
+    # Existing install: the splash block is already there but unguarded, and the grep above would
+    # otherwise skip it forever. Add the terminal check in place.
+    if sed -i 's|^\([[:space:]]*\)if type -q kitten$|\1if type -q kitten; and test "$TERM" = xterm-kitty|' "$CFG"; then
+      ok "splash now only runs under kitty (was firing in cool-retro-term and rio)"
+    else
+      warn "couldn't patch the splash guard in $CFG |::| add: and test \"\$TERM\" = xterm-kitty"
+    fi
   fi
   FISH_PATH="/usr/bin/fish"
   if ! grep -q "$FISH_PATH" /etc/shells 2>/dev/null; then
