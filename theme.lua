@@ -351,19 +351,19 @@ end
 
 hl.layer_rule({ match = { namespace = "modal_.*" }, blur = true })
 
+-- Terminals tile like any other window. `tile` is set explicitly rather than just dropping the
+-- old `float` rule, so nothing later can float them back. The `size` and `center` effects went
+-- with it — both only mean anything for a floating window.
+-- To go back to floating, swap tile for: float = true, center = true, size = "..."
 hl.window_rule({
     name        = "rio-terminal",
     match       = { class = "^(rio)$" },
     border_size = 0,
     no_shadow   = true,
-    float       = true,
-    size        = "1238 766",
-    center      = true,
+    tile        = true,
 })
 
-hl.window_rule({ match = { class = "^cool-retro-term$" },          float = true })
-hl.window_rule({ match = { class = "^cool-retro-term$" },          center = true })
-hl.window_rule({ match = { class = "^cool-retro-term$" },          size  = "60% 65%" })
+hl.window_rule({ match = { class = "^cool-retro-term$" },          tile = true })
 hl.window_rule({ match = { class = "^xdg-desktop-portal-gtk$" },   float = true })
 hl.window_rule({ match = { class = "^xdg-desktop-portal-gtk$" },   center = true })
 hl.window_rule({ match = { class = "^xdg-desktop-portal-gtk$" },   size  = "60% 65%" })
