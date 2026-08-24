@@ -1,37 +1,84 @@
 #!/usr/bin/env bash
 # Starts a polkit authentication agent for the session, if one isn't already running.
 #
-# Without an agent, anything that asks polkit for authorization gets refused rather than prompting:
-# nautilus can't mount external drives, and the HUD's system-time modal fails with
-# "NO POLKIT AGENT — CANNOT AUTHORIZE" (it calls timedatectl and lets polkit handle auth).
+# Without an agent, polkit refuses instead of prompting for anything marked auth_admin:
+# mounting an internal disk (org.freedesktop.udisks2.filesystem-mount-system) fails with
+# "Authorization requires authentication but no agent is available", and the HUD's system-time
+# modal reports "NO POLKIT AGENT — CANNOT AUTHORIZE".
 #
-# The theme doesn't ship or depend on a particular agent, so try the usual ones in order and
-# prefer the Hyprland-native one. Install any of them and this picks it up on the next login.
+# The theme doesn't depend on a particular agent, so try the usual ones and keep the first that
+# actually stays alive. Launching is not the same as running: a Qt agent with no usable platform
+# plugin exits immediately, so each candidate is confirmed before we call it done.
 
-# Already running? Don't stack a second one — two agents fight over the same registration.
-if pgrep -af 'polkit.*(agent|authentication)' 2>/dev/null | grep -qv 'polkit-agent-helper'; then
-    exit 0
-fi
+RUNDIR="${XDG_RUNTIME_DIR:-$HOME/.cache}/cyberpunk"
+mkdir -p "$RUNDIR" 2>/dev/null || true
+chmod 700 "$RUNDIR" 2>/dev/null || true
+LOG="$RUNDIR/polkit-agent.log"
 
-# Candidates: bare command names are looked up on PATH, absolute paths are tested directly.
+log() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*" >>"$LOG" 2>/dev/null; }
+
+# Qt-based agents (polkit-kde) need a platform plugin; under Wayland without this they start and
+# exit straight away. scripts/terminal sets the same thing for cool-retro-term.
+[ -n "${WAYLAND_DISPLAY:-}" ] && export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland}"
+
+# Bare names are looked up on PATH, absolute paths are tested directly.
 CANDIDATES=(
     hyprpolkitagent
     /usr/lib/hyprpolkitagent
     /usr/lib/polkit-kde-authentication-agent-1
+    /usr/libexec/polkit-kde-authentication-agent-1
     /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+    /usr/libexec/polkit-gnome-authentication-agent-1
     lxqt-policykit-agent
     /usr/lib/mate-polkit/polkit-mate-authentication-agent-1
     /usr/lib/xfce-polkit/xfce-polkit
 )
 
+# Already running? Don't stack a second one — two agents fight over the same registration.
+#
+# Matched against the candidate basenames rather than a loose 'polkit.*agent' pattern. That
+# pattern matched THIS SCRIPT's own command line — it lives at scripts/polkit-agent, so
+# `pgrep -f` found it, concluded an agent was already up, and exited 0 without ever launching
+# one. Excluding our own pid as well, in case a candidate ever shares a name with the script.
+already_running() {
+    local a name
+    for a in "${CANDIDATES[@]}"; do
+        name="$(basename "$a")"
+        if pgrep -f "$name" 2>/dev/null | grep -qv "^$$\$"; then
+            log "agent already running ($name), nothing to do"
+            return 0
+        fi
+    done
+    return 1
+}
+
+already_running && exit 0
+
+# Launch, then confirm it is still alive. Returns 1 if it died on startup so the caller can move
+# on to the next candidate instead of reporting a success that never happened.
+try_agent() {
+    local agent="$1" i
+    log "trying $agent"
+    setsid -f "$agent" >>"$LOG" 2>&1 || { log "  failed to launch"; return 1; }
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        sleep 0.2
+        if pgrep -f "$agent" >/dev/null 2>&1; then
+            log "  started and still alive"
+            return 0
+        fi
+    done
+    log "  exited immediately — trying the next candidate"
+    return 1
+}
+
 for agent in "${CANDIDATES[@]}"; do
     if [ -x "$agent" ] || command -v "$agent" >/dev/null 2>&1; then
-        setsid -f "$agent" >/dev/null 2>&1
-        exit 0
+        try_agent "$agent" && exit 0
     fi
 done
 
+log "no polkit agent could be started"
 command -v notify-send >/dev/null 2>&1 && \
     notify-send -u critical "Cyberpunk HUD" \
-    "No polkit agent found — mounting drives and setting the system time will be refused. Install one of: hyprpolkitagent, polkit-kde-agent, polkit-gnome" 2>/dev/null
+    "No polkit agent running — mounting internal drives and setting the time will be refused. See $LOG" 2>/dev/null
 exit 1
