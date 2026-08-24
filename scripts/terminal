@@ -13,4 +13,17 @@ if command -v jq >/dev/null 2>&1 && [ -f "$CRTJSON" ]; then
   } > "$CRTCONF"
 fi
 
-exec cool-retro-term --profile Netrunner "$@"
+# cool-retro-term is an optional AppImage in install.sh, but this script is now behind the primary
+# terminal bind — so a bare exec would leave that keybind doing nothing at all on a setup that
+# declined it. Fall back to whatever terminal is actually present.
+if command -v cool-retro-term >/dev/null 2>&1; then
+  exec cool-retro-term --profile Netrunner "$@"
+fi
+
+for t in "$TERMINAL" rio kitty foot wezterm alacritty konsole gnome-terminal xterm; do
+  [ -n "$t" ] && command -v "$t" >/dev/null 2>&1 && exec "$t" "$@"
+done
+
+command -v notify-send >/dev/null 2>&1 && \
+  notify-send "Cyberpunk HUD" "No terminal found — install cool-retro-term (see install.sh) or any of: rio, kitty, foot" 2>/dev/null
+exit 1

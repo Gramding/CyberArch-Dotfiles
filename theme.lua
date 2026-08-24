@@ -14,7 +14,19 @@ local themeMod  = (MOD == "SUPER") and "SUPER + ALT" or "SUPER + SHIFT"
 local orcaKey   = (MOD == "SUPER") and "CTRL + ALT + S" or "SUPER + ALT + S"
 local augSock   = os.getenv("XDG_RUNTIME_DIR") .. "/astal/cyberpunk.sock"
 local TERM      = "rio"
-local TERMFLOAT = "rio"
+
+-- Which terminal each bind opens. The netrunner one (cool-retro-term with the Netrunner profile)
+-- is the default because it is the one that actually looks like the rice; rio moves to the
+-- secondary bind. Swap these two lines to flip them back.
+--
+-- Both already float and centre via window rules further down, so which one is primary makes no
+-- difference to tiling.
+local TERM_MAIN = cyberpunk .. "/scripts/terminal"   -- netrunner · cool-retro-term
+local TERM_ALT  = TERM                               -- rio · GPU terminal
+
+-- File manager for MOD+E. A GUI app, so unlike the previous `kitty -e spf` it needs no terminal
+-- wrapper. Not in install.sh's package list — install it with: sudo pacman -S nautilus
+local FILEMANAGER = "nautilus"
 
 local once = function(cmd)
     hl.on("hyprland.start", function()
@@ -94,9 +106,9 @@ end
 --------------------------------------------------------------------------------
 -- PROGRAMS  (niri: spawn / spawn-sh)
 --------------------------------------------------------------------------------
-hl.bind(MOD .. " + T", hl.dsp.exec_cmd(TERM))                                      -- niri Mod+T
+hl.bind(MOD .. " + T", hl.dsp.exec_cmd(TERM_MAIN))                                 -- niri Mod+T
 hl.bind(MOD .. " + D", hl.dsp.exec_cmd(cyberpunk .. "/scripts/launcher"))          -- niri Mod+D (fuzzel)
-hl.bind(MOD .. " + E", hl.dsp.exec_cmd("kitty -e spf"))                            -- niri Mod+E
+hl.bind(MOD .. " + E", hl.dsp.exec_cmd(FILEMANAGER))                               -- niri Mod+E
 hl.bind(MOD .. " + M", hl.dsp.exec_cmd("sh " .. os.getenv("HOME") .. "/Desktop/mount.sh"))
 hl.bind(MOD .. " + L", hl.dsp.exec_cmd(cyberpunk .. "/components/login/lock.sh"))  -- niri Mod+L
 hl.bind(MOD .. " + P", sock("modal pwr"))                                          -- niri Mod+P (powermenu)
@@ -127,7 +139,7 @@ hl.bind(themeMod .. " + H", sock("modal keys"))
 hl.bind(themeMod .. " + E", sock("notif-read"))
 hl.bind(themeMod .. " + X", sock("notif-dismiss"))
 hl.bind(themeMod .. " + R", hl.dsp.exec_cmd(cyberpunk .. "/scripts/screenrecord"))
-hl.bind(themeMod .. " + T", hl.dsp.exec_cmd(cyberpunk .. "/scripts/terminal"))
+hl.bind(themeMod .. " + T", hl.dsp.exec_cmd(TERM_ALT))
 hl.bind(themeMod .. " + S", hl.dsp.exec_cmd(cyberpunk .. "/scripts/screenshot"))
 
 once(cyberpunk .. "/scripts/overkill prewarm")
