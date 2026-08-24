@@ -24,6 +24,10 @@ local TERM      = "rio"
 local TERM_MAIN = cyberpunk .. "/scripts/terminal"   -- netrunner · cool-retro-term
 local TERM_ALT  = TERM                               -- rio · GPU terminal
 
+-- File manager for MOD+E. A GUI app, so unlike the previous `kitty -e spf` it needs no terminal
+-- wrapper. Not in install.sh's package list — install it with: sudo pacman -S nautilus
+local FILEMANAGER = "nautilus"
+
 local once = function(cmd)
     hl.on("hyprland.start", function()
         hl.exec_cmd(cmd)
@@ -104,7 +108,7 @@ end
 --------------------------------------------------------------------------------
 hl.bind(MOD .. " + T", hl.dsp.exec_cmd(TERM_MAIN))                                 -- niri Mod+T
 hl.bind(MOD .. " + D", hl.dsp.exec_cmd(cyberpunk .. "/scripts/launcher"))          -- niri Mod+D (fuzzel)
-hl.bind(MOD .. " + E", hl.dsp.exec_cmd("kitty -e spf"))                            -- niri Mod+E
+hl.bind(MOD .. " + E", hl.dsp.exec_cmd(FILEMANAGER))                               -- niri Mod+E
 hl.bind(MOD .. " + M", hl.dsp.exec_cmd("sh " .. os.getenv("HOME") .. "/Desktop/mount.sh"))
 hl.bind(MOD .. " + L", hl.dsp.exec_cmd(cyberpunk .. "/components/login/lock.sh"))  -- niri Mod+L
 hl.bind(MOD .. " + P", sock("modal pwr"))                                          -- niri Mod+P (powermenu)
